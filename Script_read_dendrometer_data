@@ -1,0 +1,77 @@
+###############################################################################
+# Script Name: Clean_Dendrometer_CSVs.R
+#
+# Description:
+# This script processes raw dendrometer data files stored in the "Original" 
+# folder. Each file is semicolon-delimited and contains 10 columns due to a 
+# trailing separator. The script performs the following steps:
+#
+#   1. Reads all *.csv files from the input directory:
+#      C:/Users/pa589/NAU/TREE_STRESS/FIELDWORK_overall/DENDROMETERS/Original
+#
+#   2. Assigns standardized column names:
+#      "Num", "Date_time", "Time_zone", "Temp", "T1", "T2", 
+#      "Dend", "Shake", "errFlag", "Extra"
+#
+#   3. Cleans each dataset by:
+#        - Removing all records where the "Dend" field equals 0
+#        - Dropping the trailing "Extra" column (created by the final semicolon)
+#
+#   4. Saves the cleaned dataset as a new CSV file in a subfolder called "Clean"
+#      located inside the "Original" folder. The output filename preserves the 
+#      original name but appends "_clean" before the extension.
+#
+#   5. Prints a message for each file showing the original row count and the 
+#      cleaned row count, so the user can verify how many records were removed.
+#
+# Usage:
+#   - Place this script in your R environment.
+#   - Ensure the input directory contains the raw dendrometer CSV files.
+#   - Run the script; cleaned files will be generated automatically in the 
+#     "Clean" subfolder.
+#
+# Notes:
+#   - The script assumes all files are semicolon-delimited and have the same 
+#     structure.
+#   - The "Dend" column is the key measurement; rows with Dend == 0 are removed.
+#   - The "Extra" column is dropped since it only reflects the trailing delimiter.
+#
+###############################################################################
+#Author: Paul Arellano, PhD
+# Date: November 2025
+
+
+library(readr)
+library(dplyr)
+
+# 📂 Define paths
+input_dir <- "C:/Users/pa589/NAU/TREE_STRESS/FIELDWORK_overall/DENDROMETERS/Original"
+output_dir <- file.path(input_dir, "Clean")
+if (!dir.exists(output_dir)) dir.create(output_dir)
+
+# 📄 List all CSV files
+files <- list.files(input_dir, pattern = "\\.csv$", full.names = TRUE)
+
+for (file in files) {
+  # Read with semicolon delimiter
+  df <- read_delim(file, delim = ";", col_names = FALSE, show_col_types = FALSE)
+  
+  # Assign 10 column names (last one for trailing semicolon)
+  colnames(df) <- c("Num", "Date_time", "Time_zone", "Temp", 
+                    "T1", "T2", "Dend", "Shake", "errFlag", "Extra")
+  
+  # Remove rows where Dend == 0
+  df_clean <- df %>% filter(Dend != 0)
+  
+  # Drop the trailing "Extra" column if it’s just empty
+  df_clean <- df_clean %>% select(-Extra)
+  
+  # Save cleaned file
+  base_name <- tools::file_path_sans_ext(basename(file))
+  output_file <- file.path(output_dir, paste0(base_name, "_clean.csv"))
+  write_csv(df_clean, output_file)
+  
+  message("✅ Cleaned file saved: ", output_file,
+          " | Original rows: ", nrow(df),
+          " | Cleaned rows: ", nrow(df_clean))
+}
